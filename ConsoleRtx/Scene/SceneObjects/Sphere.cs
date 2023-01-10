@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using ConsoleRtx.Models;
 
 namespace ConsoleRtx.Scene.SceneObjects;
 
@@ -6,14 +7,22 @@ public class Sphere : ISceneObject
 {
     private Vector3 _coordinates;
     private int _radius;
+    //private readonly Vector3 _lightPoint = new Vector3(0, 100, 100);
+    
     public Sphere(Vector3 coordinates, int radius)
     {
         _coordinates = coordinates;
         _radius = radius;
     }
 
-    public bool CalculateIntersection(Vector3 firstPoint, Vector3 secondPoint)
+    public IntersectionModel? CalculateIntersection(Vector3 firstPoint, Vector3 secondPoint)
     {
+        // Использую уравнения в параметическом виде
+        // x(t) = x0*(1-t) + t*x1
+        // y(t) = y0*(1-t) + t*y1
+        // z(t) = z0*(1-t) + t*z1
+        // (x(t) - xc)^2 + (y(t) - yc)^2 + (z(t) - zc)^2 = R^2
+        
         var x0 = firstPoint.X;
         var x1 = secondPoint.X;
         var y0 = firstPoint.Y;
@@ -32,8 +41,24 @@ public class Sphere : ISceneObject
         var d = MathF.Pow(b, 2) - 4 * a * c;
 
         if (d < 0)
-            return false;
+            return null;
 
-        return true;
+        // Нашли значения параметрa t для точек пересечения со сферой
+        var res1 = (-b + Math.Sqrt(d)) / 2 / a;
+        var res2 = (-b - Math.Sqrt(d)) / 2 / a;
+
+        // Находим две точки пересечения
+        var point1 = new Vector3((float) (x0 * (1 - res1) + res1 * x1), (float) (y0 * (1 - res1) + res1 * y1), (float) (z0 * (1 - res1) + res1 * z1));
+        var point2 = new Vector3((float) (x0 * (1 - res2) + res2 * x1), (float) (y0 * (1 - res2) + res2 * y1), (float) (z0 * (1 - res2) + res2 * z1));
+
+        // Берём ближайшую (видимую)
+        var nearestPoint = Vector3.Subtract(firstPoint, point1).Length() < Vector3.Subtract(firstPoint, point2).Length()
+            ? point1
+            : point2;
+        // Ищем нормаль к поверхности в этой точке
+        var radiusVector = Vector3.Subtract(nearestPoint, _coordinates);
+        var radiusNormal = radiusVector / radiusVector.Length();
+
+        return new IntersectionModel(nearestPoint, radiusNormal);
     }
 }
