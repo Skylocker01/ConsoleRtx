@@ -5,10 +5,10 @@ namespace ConsoleRtx.Camera;
 public class Camera
 {
     private static Camera? _camera;
-    private int _pixelStep = 1;
+    private float _pixelStep = 1f;
     private int _horResolution;
     private int _verResolution;
-    private float _focalLength = 1;
+    private float _focalLength = 4;
     
     private Camera()
     {}
@@ -22,7 +22,7 @@ public class Camera
             _focalLength = value;
         }
     }
-    public int PixelStep
+    public float PixelStep
     {
         get => _pixelStep;
         set
