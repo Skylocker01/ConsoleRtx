@@ -7,9 +7,10 @@ namespace ConsoleRtx.Scene;
 public class Scene : IScene
 {
     private readonly List<ISceneObject> _sceneObjects;
-    private readonly float _symbolSizeCoefficient = (24f)/11;
-    private Vector3? _lightPoint;
-    public Scene(IEnumerable<ISceneObject> sceneObjects, Vector3? lightPoint = null)
+    private readonly float _symbolSizeCoefficient = (24f) / 11;
+    private Vector3 _lightPoint;
+
+    public Scene(IEnumerable<ISceneObject> sceneObjects, Vector3 lightPoint)
     {
         _sceneObjects = sceneObjects.ToList();
         _lightPoint = lightPoint;
@@ -17,78 +18,114 @@ public class Scene : IScene
 
     public void Render(Camera.Camera camera)
     {
-        //Для записи в буфер консоли напрямую
-        using var stdout = Console.OpenStandardOutput(camera.VerResolution * camera.VerResolution);
-        var image = "";
-        char[] line = new char[camera.HorResolution];
+        char[][] imageArr = new char[camera.VerResolution][];
         while (true)
         {
             var watch = new System.Diagnostics.Stopwatch();
             watch.Start();
-            
-            //Прохожусь по всем объектам на сцене
-            for (int k = 0; k < _sceneObjects.Count(); k++)
+
+            //Для каждого ряда пикселей
+            for (int i = 0 - camera.VerResolution / 2; i < camera.VerResolution / 2; i++)
             {
-                //Для каждого ряда пикселей
-                for (int i = 0 - camera.VerResolution / 2; i < camera.VerResolution / 2; i++)
+                char[] line = new char[camera.HorResolution];
+                var verIterationNumber = i + camera.VerResolution / 2;
+                //Параллельно вычисляю значения пиксилей
+                Parallel.For(0 - camera.HorResolution / 2, camera.HorResolution / 2, j =>
                 {
-                    //Параллельно вычисляю значения пиксилей
-                    Parallel.For(0 - camera.HorResolution / 2, camera.HorResolution / 2, j =>
-                    {
+                    
                         var horIterationNumber = j + camera.HorResolution / 2;
                         Vector3 firstPoint = camera.Position;
-                        Vector3 secondPoint = new Vector3(camera.FocalLength,
-                            i * camera.PixelStep * _symbolSizeCoefficient + camera.Position.Z,
-                            j * camera.PixelStep + camera.Position.Y);
-                        var res = _sceneObjects[k].CalculateIntersection(firstPoint, secondPoint);
-                        if (res is null || _lightPoint is null)
+                        Vector3 secondPoint = new Vector3(camera.FocalLength + camera.Position.X,
+                            i * camera.PixelStep * _symbolSizeCoefficient + camera.Position.Y,
+                            j * camera.PixelStep + camera.Position.Z);
+
+                        List<IntersectionModel> allIntersections = new();
+                        
+                        //Прохожусь по всем объектам на сцене
+                        for (int k = 0; k < _sceneObjects.Count(); k++)
                         {
-                            line[horIterationNumber] = res is null ? ' ' : '@';
+                            var res = _sceneObjects[k].CalculateIntersection(firstPoint, secondPoint);
+                            if(res != null)
+                                allIntersections.Add(res);
+                        }
+
+                        //Нахожу ближайшую к камере точку пересечения
+                        IntersectionModel closestPoint = null;
+                        float currMin = float.MaxValue;
+                        for (int k = 0; k < allIntersections.Count; k++)
+                        {
+                            var range = Vector3.Distance(allIntersections[k].IntersectionPoint, camera.Position);
+                            if (range < currMin)
+                            {
+                                currMin = range;
+                                closestPoint = allIntersections[k];
+                            }
+                        }
+
+                        if (closestPoint is null)
+                        {
+                            line[horIterationNumber] = closestPoint is null ? ' ' : '@';
                             return;
                         }
-                    
+                        
                         //Нахожу угол между нормалью и лучом к источнику света
-                        var lightVector = Vector3.Subtract(_lightPoint.Value, res.IntersectionPoint);
+                        var lightVector = Vector3.Subtract(_lightPoint, closestPoint.IntersectionPoint);
                         var lightNormal = lightVector / lightVector.Length();
-                        var angle = Vector3.Dot(lightNormal, res.NormalVector);
-                    
+                        var angle = Vector3.Dot(lightNormal, closestPoint.NormalVector);
+                        
                         if (angle > RenderData.Angles[0])
                             line[horIterationNumber] = RenderData.Symbols[0];
                         else if (angle < RenderData.Angles[0] && angle > RenderData.Angles[1])
                             line[horIterationNumber] = RenderData.Symbols[1];
                         else if (angle < RenderData.Angles[1] && angle > RenderData.Angles[2])
                             line[horIterationNumber] = RenderData.Symbols[2];
-                        else
+                        else if (angle < RenderData.Angles[2] && angle > RenderData.Angles[3])
                             line[horIterationNumber] = RenderData.Symbols[3];
-                    });
-                    image += string.Join("", line);
-                }
-                
+                        else
+                            line[horIterationNumber] = RenderData.Symbols[4];
+                    
+                });
+                imageArr[verIterationNumber] = line;
             }
 
-            watch.Stop();
-            var fps = 1000 / watch.ElapsedMilliseconds;
+            RotateLight(0.01f);
+            //((Sphere)_sceneObjects.First()).MoveZ(50);
 
-            byte[] buffer = image.Select(x => (byte) x).ToArray();
+
+            watch.Stop();
+            var fps = 1000.0 / (watch.ElapsedMilliseconds + 1);
+            var fpsString = $"fps: {fps}";
+            WriteToOutputLine(fpsString, imageArr[2]);
+            WriteToOutputLine($"LightPoint X: {_lightPoint.X}, Y: {_lightPoint.Y}, Z: {_lightPoint.Z}", imageArr[3]);
+            WriteToOutputLine($"Camera X: {camera.Position.X}, Y: {camera.Position.Y}, Z: {camera.Position.Z}", imageArr[4]);
+            WriteToOutputLine($"Object X: {_sceneObjects.First().Position.X}, Y: {_sceneObjects.First().Position.Y}, Z: {_sceneObjects.First().Position.Z}", imageArr[5]);
+
+            //Для записи в буфер консоли напрямую
+            using var stdout = Console.OpenStandardOutput(camera.VerResolution * camera.VerResolution);
+            //byte[] buffer = image.Select(x => (byte) x).ToArray();
+            byte[] buffer = imageArr.SelectMany(x => x.Select(y => (byte)y)).ToArray();
             stdout.Write(buffer, 0, buffer.Length);
-            
-            // if(_lightPoint.HasValue)
-            //     RotateLight(0.1f);
         }
+    }
+
+    private void WriteToOutputLine(string str, in char[] arr)
+    {
+        for (int i = 0; i < str.Length; i++)
+        {
+            arr[i] = str[i];
+        }
+        
     }
 
     private void RotateLight(float radians)
     {
-        if (_lightPoint is null)
-            throw new InvalidOperationException("There is no light on the scene");
-        
-        
-        var rVector = Math.Sqrt(MathF.Pow(_lightPoint.Value.X, 2) + MathF.Pow(_lightPoint.Value.Y, 2));
-        var angle = Math.Acos(_lightPoint.Value.X / rVector) + radians;
-        
+        var rVector =
+            (float) Math.Sqrt(MathF.Pow(_lightPoint.X, 2) + MathF.Pow(_lightPoint.Z, 2));
+        var angle = Math.Atan2(_lightPoint.Z, _lightPoint.X) + radians;
+
         //x=r*cos(f)
-        var x = (float)(rVector * Math.Cos(angle));
-        var y = (float)(rVector * Math.Sin(angle));
-        _lightPoint = new Vector3(x, y, _lightPoint.Value.Z);
+        var x = (float) (rVector * Math.Cos(angle));
+        var y = (float) (rVector * Math.Sin(angle));
+        _lightPoint = new Vector3(x, _lightPoint.Y, y);
     }
 }

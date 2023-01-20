@@ -5,14 +5,25 @@ namespace ConsoleRtx.Scene.SceneObjects;
 
 public class Sphere : ISceneObject
 {
-    private Vector3 _coordinates;
+    private Vector3 _position;
+
+    public Vector3 Position
+    {
+        get => _position;
+        private set => _position = value;
+    }
     private int _radius;
     //private readonly Vector3 _lightPoint = new Vector3(0, 100, 100);
     
-    public Sphere(Vector3 coordinates, int radius)
+    public Sphere(Vector3 position, int radius)
     {
-        _coordinates = coordinates;
+        _position = position;
         _radius = radius;
+    }
+
+    public void MoveZ(float range)
+    {
+        _position.Z = (float)(range * Math.Sin(DateTime.Now.Second));
     }
 
     public IntersectionModel? CalculateIntersection(Vector3 firstPoint, Vector3 secondPoint)
@@ -30,9 +41,9 @@ public class Sphere : ISceneObject
         var z0 = firstPoint.Z;
         var z1 = secondPoint.Z;
 
-        var xc = _coordinates.X;
-        var yc = _coordinates.Y;
-        var zc = _coordinates.Z;
+        var xc = _position.X;
+        var yc = _position.Y;
+        var zc = _position.Z;
 
         var a = MathF.Pow((x0 - xc), 2) + MathF.Pow((y0 - yc), 2) + MathF.Pow((z0 - zc), 2) - MathF.Pow(_radius, 2);
         var c = MathF.Pow((x0 - x1), 2) + MathF.Pow((y0 - y1), 2) + MathF.Pow((z0 - z1), 2);
@@ -56,7 +67,7 @@ public class Sphere : ISceneObject
             ? point1
             : point2;
         // Ищем нормаль к поверхности в этой точке
-        var radiusVector = Vector3.Subtract(nearestPoint, _coordinates);
+        var radiusVector = Vector3.Subtract(nearestPoint, _position);
         var radiusNormal = radiusVector / radiusVector.Length();
 
         return new IntersectionModel(nearestPoint, radiusNormal);

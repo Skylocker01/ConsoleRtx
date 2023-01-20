@@ -6,12 +6,13 @@ public class Camera
 {
     private static Camera? _camera;
     private float _pixelStep = 1f;
-    private int _horResolution;
-    private int _verResolution;
-    private float _focalLength = 4;
-    
-    private Camera()
-    {}
+    private float _focalLength = 205;
+
+    private Camera(int horResolution, int verResolution)
+    {
+        HorResolution = horResolution;
+        VerResolution = verResolution;
+    }
     
     public Vector3 Position { get; set; } = new(-100, 0, 0);
     public float FocalLength {
@@ -31,14 +32,18 @@ public class Camera
             _pixelStep = value;
         }
     }
-    public int HorResolution => Console.WindowWidth;
+    public int HorResolution { get; }
 
-    public int VerResolution => Console.WindowHeight;
+    public int VerResolution { get; }
 
-    public static Camera? GetCamera()
+    public static Camera? GetCamera(int horResolution, int verResolution)
     {
         if (_camera is null)
-            _camera = new Camera();
+            _camera = new Camera(horResolution, verResolution);
+        
+        if (verResolution % 2 != 0 || horResolution % 2 != 0) throw new InvalidDataException("Resolution must be mean");
+        
+        Console.SetWindowSize(horResolution, verResolution);
         return _camera;
     }
 }
