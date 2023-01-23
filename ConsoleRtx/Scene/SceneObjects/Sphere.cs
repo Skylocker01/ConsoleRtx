@@ -23,7 +23,13 @@ public class Sphere : ISceneObject
 
     public void MoveZ(float range)
     {
-        _position.Z = (float)(range * Math.Sin(DateTime.Now.Second));
+        var cos = Math.Cos(DateTimeOffset.Now.ToUnixTimeMilliseconds() / 1000.0);
+        _position.Z = (float)(range * cos);
+    }
+    public void MoveX(float range)
+    {
+        var cos = Math.Cos(DateTimeOffset.Now.ToUnixTimeMilliseconds() / 1000.0);
+        _position.X = (float)(range * cos);
     }
 
     public IntersectionModel? CalculateIntersection(Vector3 firstPoint, Vector3 secondPoint)
@@ -45,8 +51,8 @@ public class Sphere : ISceneObject
         var yc = _position.Y;
         var zc = _position.Z;
 
-        var a = MathF.Pow((x0 - xc), 2) + MathF.Pow((y0 - yc), 2) + MathF.Pow((z0 - zc), 2) - MathF.Pow(_radius, 2);
-        var c = MathF.Pow((x0 - x1), 2) + MathF.Pow((y0 - y1), 2) + MathF.Pow((z0 - z1), 2);
+        var c = MathF.Pow((x0 - xc), 2) + MathF.Pow((y0 - yc), 2) + MathF.Pow((z0 - zc), 2) - MathF.Pow(_radius, 2);
+        var a = MathF.Pow((x0 - x1), 2) + MathF.Pow((y0 - y1), 2) + MathF.Pow((z0 - z1), 2);
         var b = MathF.Pow((x1 - xc), 2) + MathF.Pow((y1 - yc), 2) + MathF.Pow((z1 - zc), 2) - a - c - MathF.Pow(_radius, 2);
 
         var d = MathF.Pow(b, 2) - 4 * a * c;
