@@ -4,5 +4,5 @@ namespace ConsoleRtx.Scene;
 
 public interface IScene
 {
-    void Render(Camera.Camera camera);
+    void Render();
 }

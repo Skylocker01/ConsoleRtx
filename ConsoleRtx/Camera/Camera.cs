@@ -6,7 +6,7 @@ public class Camera
 {
     private static Camera? _camera;
     private float _pixelStep = 1f;
-    private float _focalLength = 205;
+    private readonly float _symbolSizeCoefficient = (24f) / 11;
 
     private Camera(int horResolution, int verResolution)
     {
@@ -15,14 +15,7 @@ public class Camera
     }
     
     public Vector3 Position { get; set; } = new(-100, 0, 0);
-    public float FocalLength {
-        get => _focalLength;
-        set
-        {
-            if (value <= 0) throw new InvalidDataException("Focal length must be positive");
-            _focalLength = value;
-        }
-    }
+
     public float PixelStep
     {
         get => _pixelStep;
@@ -47,8 +40,21 @@ public class Camera
         return _camera;
     }
 
-    //Возвращает 2 точки в простренстве сцены, соответствующие прямой из пикселя с заданными индексами
-    public void GetPixelLine(Vector3 viewPoint)
+    public Vector3 GetCameraPixelCoord(int row, int column, Vector3 viewPoint)
+    {
+        Vector3 pixelPoint = new Vector3(_camera.Position.X,
+            row * _camera.PixelStep * _symbolSizeCoefficient,
+            column * _camera.PixelStep);
+        return TransformToSceneCoordinateSystem(viewPoint, pixelPoint);
+    }
+    /// <summary>
+    /// Возвращает координаты точки в СК сцены по направлению взгляда камеры и координат в СК камеры
+    /// </summary>
+    /// <param name="viewPoint">Направление взгляда камеры</param>
+    /// <param name="pointInCameraSystem">Координата точки в СК камеры</param>
+    /// <returns>Координата точки в СК сцены</returns>
+    /// <exception cref="InvalidDataException"></exception>
+    private Vector3 TransformToSceneCoordinateSystem(Vector3 viewPoint, Vector3 pointInCameraSystem)
     {
         // Мне пока впадлу решать такое уравнение, так что:
         if (viewPoint.X == _camera.Position.X && viewPoint.Y == _camera.Position.Y)
@@ -112,5 +118,25 @@ public class Camera
         jc /= jc.Length();
         kc /= kc.Length();
 
+        // Шарп не умеет в матрицы 3х3, не хочу левых фреймворков ради одного выражения, так что выкручиваюсь так
+        var matrixToInvert = new Matrix4x4(ic.X, jc.X, kc.X, 0, ic.Y, jc.Y, kc.Y, 0, ic.Z, jc.Z, kc.Z, 0, 0, 0, 0, 1);
+        Matrix4x4.Invert(matrixToInvert, out var transitionMatrix);
+        var result = new Vector3();
+        
+        //Переходим от базиса камеры к базису сцены
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                result[i] += transitionMatrix[i, j] * pointInCameraSystem[i];
+            }
+        }
+        
+        //Выполняем сдвиг СО
+        result += _camera.Position;
+
+
+        return result;
     }
+    
 }

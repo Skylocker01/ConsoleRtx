@@ -7,37 +7,38 @@ namespace ConsoleRtx.Scene;
 public class Scene : IScene
 {
     private readonly List<ISceneObject> _sceneObjects;
-    private readonly float _symbolSizeCoefficient = (24f) / 11;
     private Vector3 _lightPoint;
+    private readonly Camera.Camera _camera;
 
-    public Scene(IEnumerable<ISceneObject> sceneObjects, Vector3 lightPoint)
+    public Scene(IEnumerable<ISceneObject> sceneObjects, Vector3 lightPoint, Camera.Camera camera)
     {
         _sceneObjects = sceneObjects.ToList();
         _lightPoint = lightPoint;
+        _camera = camera;
     }
 
-    public void Render(Camera.Camera camera)
+    public void Render()
     {
-        char[][] imageArr = new char[camera.VerResolution][];
+        char[][] imageArr = new char[_camera.VerResolution][];
         while (true)
         {
             var watch = new System.Diagnostics.Stopwatch();
             watch.Start();
 
             //Для каждого ряда пикселей
-            Parallel.For(0 - camera.VerResolution / 2, camera.VerResolution / 2, i =>
+            Parallel.For(0 - _camera.VerResolution / 2, _camera.VerResolution / 2, i =>
             {
-                char[] line = new char[camera.HorResolution];
-                //Создаю одильный индексатор с 0, чтобы удобнее было работать с массивом
-                var verIterationNumber = i + camera.VerResolution / 2;
+                char[] line = new char[_camera.HorResolution];
+                //Создаю отдельный индексатор с 0, чтобы удобнее было работать с массивом
+                var verIterationNumber = i + _camera.VerResolution / 2;
                 //Параллельно вычисляю значения пиксилей
-                Parallel.For(0 - camera.HorResolution / 2, camera.HorResolution / 2, j =>
+                Parallel.For(0 - _camera.HorResolution / 2, _camera.HorResolution / 2, j =>
                 {
-                    var horIterationNumber = j + camera.HorResolution / 2;
-                    Vector3 firstPoint = camera.Position;
-                    Vector3 secondPoint = new Vector3(camera.FocalLength + camera.Position.X,
-                        i * camera.PixelStep * _symbolSizeCoefficient + camera.Position.Y,
-                        j * camera.PixelStep + camera.Position.Z);
+                    var horIterationNumber = j + _camera.HorResolution / 2;
+                    Vector3 viewPoint = Vector3.Zero;
+                    Vector3 firstPoint = _camera.Position;
+                    Vector3 secondPoint =
+                        _camera.GetCameraPixelCoord(i, j, viewPoint);
 
                     List<IntersectionModel> allIntersections = new();
 
@@ -54,7 +55,7 @@ public class Scene : IScene
                     float currMin = float.MaxValue;
                     for (int k = 0; k < allIntersections.Count; k++)
                     {
-                        var range = Vector3.Distance(allIntersections[k].IntersectionPoint, camera.Position);
+                        var range = Vector3.Distance(allIntersections[k].IntersectionPoint, _camera.Position);
                         if (range < currMin)
                         {
                             currMin = range;
@@ -73,46 +74,49 @@ public class Scene : IScene
                     var lightNormal = lightVector / lightVector.Length();
                     var cos = Vector3.Dot(lightNormal, closestPoint.NormalVector);
 
-                    if (cos > RenderData.Angles[0])
-                        line[horIterationNumber] = RenderData.Symbols[0];
-                    else if (cos < RenderData.Angles[0] && cos > RenderData.Angles[1])
-                        line[horIterationNumber] = RenderData.Symbols[1];
-                    else if (cos < RenderData.Angles[1] && cos > RenderData.Angles[2])
-                        line[horIterationNumber] = RenderData.Symbols[2];
-                    else if (cos < RenderData.Angles[2] && cos > RenderData.Angles[3])
-                        line[horIterationNumber] = RenderData.Symbols[3];
-                    else
-                        line[horIterationNumber] = RenderData.Symbols[4];
+                    //В зависимости от угла рассчитываю яркость пикселя
+                    for (int p = 0; p < RenderData.Angles.Length - 2; p++)
+                    {
+                        if (cos < RenderData.Angles[p] && cos > RenderData.Angles[p + 1])
+                        {
+                            line[horIterationNumber] = RenderData.Symbols[p];
+                            break;
+                        }
+                    }
                 });
 
                 imageArr[verIterationNumber] = line;
             });
 
             RotateLight(0.01f);
-            ((Sphere) _sceneObjects.First()).MoveX(100);
-            ((Sphere)_sceneObjects.First()).MoveZ(100);
-
-
+            //((Sphere) _sceneObjects.First()).MoveX(100);
+            //((Sphere)_sceneObjects.First()).MoveZ(50);
             watch.Stop();
-            var fps = 1000.0 / (watch.ElapsedMilliseconds + 1);
-            var fpsString = $"fps: {fps}";
-            WriteToOutputLine(fpsString, imageArr[2]);
-            WriteToOutputLine($"LightPoint X: {_lightPoint.X}, Y: {_lightPoint.Y}, Z: {_lightPoint.Z}", imageArr[3]);
-            WriteToOutputLine($"Camera X: {camera.Position.X}, Y: {camera.Position.Y}, Z: {camera.Position.Z}",
-                imageArr[4]);
-            WriteToOutputLine(
-                $"Object X: {_sceneObjects.First().Position.X}, Y: {_sceneObjects.First().Position.Y}, Z: {_sceneObjects.First().Position.Z}",
-                imageArr[5]);
+            
+            
+            PrintDebugInfo(watch.ElapsedMilliseconds, imageArr);
 
             //Для записи в буфер консоли напрямую
-            using var stdout = Console.OpenStandardOutput(camera.VerResolution * camera.VerResolution);
-            //byte[] buffer = image.Select(x => (byte) x).ToArray();
+            using var stdout = Console.OpenStandardOutput(_camera.VerResolution * _camera.VerResolution);
             byte[] buffer = imageArr.SelectMany(x => x.Select(y => (byte) y)).ToArray();
             stdout.Write(buffer, 0, buffer.Length);
             //Console.ReadKey();
         }
     }
 
+    private void PrintDebugInfo(long millisecondsForFrame, char[][] imageArr)
+    {
+        var fps = 1000.0 / (millisecondsForFrame + 1);
+        var fpsString = $"fps: {fps}";
+        WriteToOutputLine(fpsString, imageArr[2]);
+        WriteToOutputLine($"LightPoint X: {_lightPoint.X}, Y: {_lightPoint.Y}, Z: {_lightPoint.Z}", imageArr[3]);
+        WriteToOutputLine($"_camera X: {_camera.Position.X}, Y: {_camera.Position.Y}, Z: {_camera.Position.Z}",
+            imageArr[4]);
+        WriteToOutputLine(
+            $"Object X: {_sceneObjects.First().Position.X}, Y: {_sceneObjects.First().Position.Y}, Z: {_sceneObjects.First().Position.Z}",
+            imageArr[5]);
+    }
+    
     private void WriteToOutputLine(string str, in char[] arr)
     {
         for (int i = 0; i < str.Length; i++)
@@ -120,6 +124,7 @@ public class Scene : IScene
             arr[i] = str[i];
         }
     }
+
 
     private void RotateLight(float radians)
     {
