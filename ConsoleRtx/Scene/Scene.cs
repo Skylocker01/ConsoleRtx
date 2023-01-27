@@ -26,26 +26,32 @@ public class Scene : IScene
             watch.Start();
 
             //Для каждого ряда пикселей
-            Parallel.For(0 - _camera.VerResolution / 2, _camera.VerResolution / 2, i =>
+            Parallel.For(0 - _camera.VerResolution / 2, _camera.VerResolution / 2,
+                //new ParallelOptions() {MaxDegreeOfParallelism = 1},
+                i =>
             {
                 char[] line = new char[_camera.HorResolution];
                 //Создаю отдельный индексатор с 0, чтобы удобнее было работать с массивом
                 var verIterationNumber = i + _camera.VerResolution / 2;
                 //Параллельно вычисляю значения пиксилей
-                Parallel.For(0 - _camera.HorResolution / 2, _camera.HorResolution / 2, j =>
+                Parallel.For(0 - _camera.HorResolution / 2, _camera.HorResolution / 2,
+                    //new ParallelOptions() {MaxDegreeOfParallelism = 1},
+                    j =>
                 {
                     var horIterationNumber = j + _camera.HorResolution / 2;
                     Vector3 viewPoint = Vector3.Zero;
-                    Vector3 firstPoint = _camera.Position;
-                    Vector3 secondPoint =
+                    Vector3 pixelPoint =
                         _camera.GetCameraPixelCoord(i, j, viewPoint);
 
+                    Vector3 pixelPoint1 = new Vector3(j * _camera.PixelStep + _camera.Position.X,
+                        -i * _camera.PixelStep * (24f) / 11 + _camera.Position.Y,
+                        210 + _camera.Position.Z);
                     List<IntersectionModel> allIntersections = new();
 
                     //Прохожусь по всем объектам на сцене
                     for (int k = 0; k < _sceneObjects.Count(); k++)
                     {
-                        var res = _sceneObjects[k].CalculateIntersection(firstPoint, secondPoint);
+                        var res = _sceneObjects[k].CalculateIntersection(_camera.Position, pixelPoint);
                         if (res != null)
                             allIntersections.Add(res);
                     }
@@ -88,9 +94,10 @@ public class Scene : IScene
                 imageArr[verIterationNumber] = line;
             });
 
-            RotateLight(0.01f);
+            //RotateLight(0.01f);
             //((Sphere) _sceneObjects.First()).MoveX(100);
             //((Sphere)_sceneObjects.First()).MoveZ(50);
+            RotateCamera(0.01f);
             watch.Stop();
             
             
@@ -110,7 +117,7 @@ public class Scene : IScene
         var fpsString = $"fps: {fps}";
         WriteToOutputLine(fpsString, imageArr[2]);
         WriteToOutputLine($"LightPoint X: {_lightPoint.X}, Y: {_lightPoint.Y}, Z: {_lightPoint.Z}", imageArr[3]);
-        WriteToOutputLine($"_camera X: {_camera.Position.X}, Y: {_camera.Position.Y}, Z: {_camera.Position.Z}",
+        WriteToOutputLine($"Camera X: {_camera.Position.X}, Y: {_camera.Position.Y}, Z: {_camera.Position.Z}",
             imageArr[4]);
         WriteToOutputLine(
             $"Object X: {_sceneObjects.First().Position.X}, Y: {_sceneObjects.First().Position.Y}, Z: {_sceneObjects.First().Position.Z}",
@@ -136,5 +143,17 @@ public class Scene : IScene
         var x = (float) (rVector * Math.Cos(angle));
         var y = (float) (rVector * Math.Sin(angle));
         _lightPoint = new Vector3(x, _lightPoint.Y, y);
+    }
+    
+    private void RotateCamera(float radians)
+    {
+        var rVector =
+            (float) Math.Sqrt(MathF.Pow(_camera.Position.X, 2) + MathF.Pow(_camera.Position.Z, 2));
+        var angle = Math.Atan2(_camera.Position.Z, _camera.Position.X) + radians;
+
+        //x=r*cos(f)
+        var x = (float) (rVector * Math.Cos(angle));
+        var y = (float) (rVector * Math.Sin(angle));
+        _camera.Position = new Vector3(x, _camera.Position.Y, y);
     }
 }
