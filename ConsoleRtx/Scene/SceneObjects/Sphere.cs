@@ -21,17 +21,6 @@ public class Sphere : ISceneObject
         _radius = radius;
     }
 
-    public void MoveZ(float range)
-    {
-        var cos = Math.Cos(DateTimeOffset.Now.ToUnixTimeMilliseconds() / 1000.0);
-        _position.Z = (float)(range * cos);
-    }
-    public void MoveX(float range)
-    {
-        var cos = Math.Cos(DateTimeOffset.Now.ToUnixTimeMilliseconds() / 1000.0);
-        _position.X = (float)(range * cos);
-    }
-
     public IntersectionModel? CalculateIntersection(Vector3 firstPoint, Vector3 secondPoint)
     {
         // Использую уравнения в параметическом виде
