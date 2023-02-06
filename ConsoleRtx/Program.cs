@@ -8,15 +8,21 @@ using ConsoleRtx.Scene.SceneActions;
 using ConsoleRtx.Scene.SceneObjects;
 
 var camera = Camera.GetCamera(200, 40);
-camera!.Position = new Vector3(100, 50, 100);
+camera!.Position = new Vector3(0, 30, 100);
+
 
 var scene = new Scene(
-    new[] {new Sphere(new Vector3(50, 0, 0), 25), new Sphere(new Vector3(-50, 0, 0), 25)},
-    new Vector3(0, 60, 0), camera);
+    new ISceneObject[]
+    {
+        new Cube(new Vector3(0, 0, 0), 30),
+        new Sphere(new Vector3(0, 0, 40), 20)
+    },
+    new Vector3(300, 100, 0), camera);
 
 scene.SetActions(new List<Action>()
 {
-    () => BaseActions.RotateCamera(scene, 0.01f), 
+    () => BaseActions.RotateCamera(scene, 0.005f), 
+    //() => BaseActions.RotateLight(scene, 0.005f), 
 });
 
 var core = new RenderCore();

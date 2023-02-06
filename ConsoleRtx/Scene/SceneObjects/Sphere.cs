@@ -23,7 +23,7 @@ public class Sphere : ISceneObject
 
     public IntersectionModel? CalculateIntersection(Vector3 firstPoint, Vector3 secondPoint)
     {
-        // Использую уравнения в параметическом виде
+        // Использую уравнения в параметрическом виде
         // x(t) = x0*(1-t) + t*x1
         // y(t) = y0*(1-t) + t*y1
         // z(t) = z0*(1-t) + t*z1

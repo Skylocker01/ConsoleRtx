@@ -69,7 +69,7 @@ public class RenderCore
                             var cos = Vector3.Dot(lightNormal, closestPoint.NormalVector);
 
                             //В зависимости от угла рассчитываю яркость пикселя
-                            for (int p = 0; p < RenderData.Angles.Length - 2; p++)
+                            for (int p = 0; p < RenderData.Angles.Length - 1; p++)
                             {
                                 if (cos < RenderData.Angles[p] && cos > RenderData.Angles[p + 1])
                                 {
