@@ -14,10 +14,10 @@ camera!.Position = new Vector3(0, 30, 100);
 var scene = new Scene(
     new ISceneObject[]
     {
-        new Cube(new Vector3(0, 0, 0), 30),
+        new Cube(new Vector3(0, 0, -20), 30),
         new Sphere(new Vector3(0, 0, 40), 20)
     },
-    new Vector3(300, 100, 0), camera);
+    new Vector3(-100, 100, 10), camera);
 
 scene.SetActions(new List<Action>()
 {

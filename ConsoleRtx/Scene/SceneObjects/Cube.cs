@@ -14,34 +14,43 @@ public class Cube : ISceneObject
         Side = side;
         Position = position;
     }
+
     public IntersectionModel? CalculateIntersection(Vector3 firstPoint, Vector3 secondPoint)
     {
         var potentialResults = new List<(Vector3 point, Vector3 normal)>();
-        
-        var xyPoint1 = CalculatePlaneIntersection(firstPoint, secondPoint, new Vector3(0, 0, -1));
-        if(xyPoint1.X < Position.X + Side / 2f && xyPoint1.X > Position.X - Side / 2f && xyPoint1.Y < Position.Y + Side / 2f && xyPoint1.Y > Position.Y - Side / 2f)
-            potentialResults.Add((xyPoint1, new Vector3(0, 0, -1)));
-        var xyPoint2 = CalculatePlaneIntersection(firstPoint, secondPoint, new Vector3(0, 0, 1));
-        if(xyPoint2.X < Position.X + Side / 2f && xyPoint2.X > Position.X - Side / 2f && xyPoint2.Y < Position.Y + Side / 2f && xyPoint2.Y > Position.Y - Side / 2f)
-            potentialResults.Add((xyPoint2, new Vector3(0, 0, 1)));
-        
-        var yzPoint1 = CalculatePlaneIntersection(firstPoint, secondPoint, new Vector3(-1, 0, 0));
-        if(yzPoint1.Z < Position.Z + Side / 2f && yzPoint1.Z > Position.Z - Side / 2f && yzPoint1.Y < Position.Y + Side / 2f && yzPoint1.Y > Position.Y - Side / 2f)
-            potentialResults.Add((yzPoint1, new Vector3(-1, 0, 0)));
-        var yzPoint2 = CalculatePlaneIntersection(firstPoint, secondPoint, new Vector3(1, 0, 0));
-        if(yzPoint2.Z < Position.Z + Side / 2f && yzPoint2.Z > Position.Z - Side / 2f && yzPoint2.Y < Position.Y + Side / 2f && yzPoint2.Y > Position.Y - Side / 2f)
-            potentialResults.Add((yzPoint2, new Vector3(1, 0, 0)));
-        
-        var xzPoint1 = CalculatePlaneIntersection(firstPoint, secondPoint, new Vector3(0, -1, 0));
-        if(xzPoint1.Z < Position.Z + Side / 2f && xzPoint1.Z > Position.Z - Side / 2f && xzPoint1.X < Position.X + Side / 2f && xzPoint1.X > Position.X - Side / 2f)
-            potentialResults.Add((xzPoint1, new Vector3(0, -1, 0)));
-        var xzPoint2 = CalculatePlaneIntersection(firstPoint, secondPoint, new Vector3(0, 1, 0));
-        if(xzPoint2.Z < Position.Z + Side / 2f && xzPoint2.Z > Position.Z - Side / 2f && xzPoint2.X < Position.X + Side / 2f && xzPoint2.X > Position.X - Side / 2f)
-            potentialResults.Add((xzPoint2, new Vector3(0, 1, 0)));
+
+        var normal = Vector3.Zero;
+        //Проходимся по трём осям
+        for (int i = 0; i < 3; i++)
+        {
+            // Мне нужно задать условия на плоскости, перпендикулярной к текущей нормали, для этого нахожу индексы соответствующих осей
+            // (Для оси Х мне нужны оси Y и Z, т.е. для индекса 0 - индексы 1 и 2, для 1 - индексы 0 и 2, для 2 - индексы 0 и 1)
+            // Мамкин математик придумал соответствующие функции
+            var firstPerpendicularIndex = (int) Math.Pow(0, i);
+            var secondPerpendicularIndex =
+                (int) (firstPerpendicularIndex + i + Math.Pow(-1, firstPerpendicularIndex + i + 1));
+            // Проходимся по двум возможным направлениям нормалей в точках пересечения
+            for (int j = 0; j < 2; j++)
+            {
+                // Задаю нормаль для данной плоскости
+                normal[i] = MathF.Pow(-1, j);
+                var point = CalculatePlaneIntersection(firstPoint, secondPoint, normal);
+                // Если точка лежит в пределах стороны куба - добавляю её
+                if (point[firstPerpendicularIndex] < Position[firstPerpendicularIndex] + Side / 2f &&
+                    point[firstPerpendicularIndex] > Position[firstPerpendicularIndex] - Side / 2f &&
+                    point[secondPerpendicularIndex] < Position[secondPerpendicularIndex] + Side / 2f &&
+                    point[secondPerpendicularIndex] > Position[secondPerpendicularIndex] - Side / 2f)
+                    potentialResults.Add((point, normal));
+            }
+
+            if (potentialResults.Count() == 2)
+                break;
+            normal = Vector3.Zero;
+        }
 
         if (!potentialResults.Any())
             return null;
-        
+
         var minLength = float.MaxValue;
         var indexOfMin = 0;
         for (int i = 0; i < potentialResults.Count; i++)
@@ -54,6 +63,7 @@ public class Cube : ISceneObject
         }
 
         return new IntersectionModel(potentialResults[indexOfMin].point, potentialResults[indexOfMin].normal);
+
 
     }
 
