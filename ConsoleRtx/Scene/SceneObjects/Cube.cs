@@ -43,6 +43,7 @@ public class Cube : ISceneObject
                     potentialResults.Add((point, normal));
             }
 
+            // У прямой может быть не более двух точек пересечения с трёхмерным телом
             if (potentialResults.Count() == 2)
                 break;
             normal = Vector3.Zero;
